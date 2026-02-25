@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Monitoring Order - Tech Engine</title>
+    <!-- Tailwind CSS untuk desain UI modern dan responsif -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts untuk tampilan font ala Teknologi -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome untuk Icon UI -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        // Konfigurasi Tema Warna Tailwind
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        tech: ['Rajdhani', 'sans-serif'],
+                        display: ['Orbitron', 'sans-serif'],
+                    },
+                    colors: {
+                        engine: {
+                            900: '#0a0f16',
+                            800: '#111827',
+                            700: '#1f2937',
+                            accent: '#00f0ff', // Warna Cyan Neon
+                            warn: '#ffae00',   // Warna Oranye Peringatan
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Gaya CSS Tambahan untuk Latar Belakang dan Efek Neon */
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0a0f16;
+            color: #e5e7eb;
+            background-image: 
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+        .neon-border {
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.1);
+        }
+        .neon-text {
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+        }
+        /* Mengubah gaya Scrollbar agar terlihat keren */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #00f0ff; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00c3cc; }
+    </style>
+</head>
+<body class="h-screen overflow-hidden flex flex-col relative">
+
+    <!-- ================= SISTEM NOTIFIKASI (TOAST) ================= -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-engine-accent text-engine-900 px-6 py-3 rounded font-bold z-[100] transition-all duration-300 transform translate-y-20 opacity-0 shadow-lg neon-border">
+        <i class="fas fa-check-circle mr-2"></i> <span id="toast-msg">Pesan Notifikasi</span>
+    </div>
+
+    <!-- ================= HALAMAN LOGIN ================= -->
+    <div id="login-page" class="absolute inset-0 z-50 flex items-center justify-center bg-engine-900 bg-opacity-95 backdrop-blur-sm">
+        <div class="bg-engine-800 p-8 rounded-lg neon-border w-96 max-w-full">
+            <div class="text-center mb-8">
+                <i class="fas fa-cogs text-4xl text-engine-accent mb-3 animate-spin-slow"></i>
+                <h2 class="text-2xl font-display font-bold text-white neon-text">ENGINE<span class="text-engine-accent">CORE</span></h2>
+                <p class="text-gray-400 text-sm mt-1">Sistem Proteksi Akses</p>
+            </div>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="mb-4">
+                    <label class="block text-engine-accent text-sm font-bold mb-2"><i class="fas fa-user mr-2"></i>Username</label>
+                    <input type="text" id="username" class="w-full bg-engine-900 border border-gray-700 rounded py-2 px-3 text-white focus:outline-none focus:border-engine-accent transition-colors" required placeholder="Contoh: Admin">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-engine-accent text-sm font-bold mb-2"><i class="fas fa-lock mr-2"></i>Password</label>
+                    <input type="password" id="password" class="w-full bg-engine-900 border border-gray-700 rounded py-2 px-3 text-white focus:outline-none focus:border-engine-accent transition-colors" required placeholder="Masukkan password...">
+                </div>
+                <div id="login-error" class="hidden text-red-500 text-sm mb-4 text-center font-bold">Username atau Password salah!</div>
+                <button type="submit" class="w-full bg-transparent border border-engine-accent text-engine-accent font-bold py-2 px-4 rounded hover:bg-engine-accent hover:text-engine-900 transition-all duration-300 flex justify-center items-center">
+                    <i class="fas fa-sign-in-alt mr-2"></i> INITIALIZE LOGIN
+                </button>
+            </form>
+            <div class="mt-4 text-center text-xs text-gray-500">
+                Terhubung ke Database Google Sheets
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= DASHBOARD UTAMA ================= -->
+    <div id="main-dashboard" class="hidden flex h-full w-full">
+        
+        <!-- SIDEBAR / MENU SAMPING -->
+        <div id="sidebar" class="w-64 bg-engine-800 border-r border-gray-800 flex flex-col z-10 neon-border transition-all duration-300">
+            <div class="p-5 flex items-center justify-center border-b border-gray-700">
+                <i class="fas fa-microchip text-2xl text-engine-accent mr-3"></i>
+                <h1 class="font-display font-bold text-xl tracking-wider">SYS<span class="text-engine-accent">MONITOR</span></h1>
+            </div>
+            <div class="p-4 flex-1 overflow-y-auto">
+                <ul class="space-y-2">
+                    <li>
+                        <a href="#" onclick="changeMenu('dashboard')" class="flex items-center p-3 rounded bg-engine-900 text-engine-accent border border-engine-accent transition-colors menu-item" id="menu-dashboard">
+                            <i class="fas fa-tachometer-alt w-6"></i>
+                            <span class="font-bold">Monitoring (3 Hari)</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" onclick="changeMenu('all')" class="flex items-center p-3 rounded text-gray-400 hover:text-engine-accent hover:bg-engine-900 transition-colors menu-item" id="menu-all">
+                            <i class="fas fa-database w-6"></i>
+                            <span class="font-bold">Semua Orderan</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="p-4 border-t border-gray-700">
+                <div class="flex items-center mb-3">
+                    <div class="w-8 h-8 rounded-full bg-engine-accent text-engine-900 flex items-center justify-center font-bold mr-3">
+                        <i class="fas fa-user-astronaut"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-bold text-white" id="display-username">User</div>
+                        <div class="text-xs text-green-400"><i class="fas fa-circle text-[8px] mr-1"></i><span id="display-role">Online</span></div>
+                    </div>
+                </div>
+                <button onclick="logout()" class="w-full py-2 text-sm text-red-400 hover:text-white hover:bg-red-500 rounded border border-red-500 transition-colors">
+                    <i class="fas fa-power-off mr-2"></i>LOGOUT
+                </button>
+            </div>
+        </div>
+
+        <!-- AREA KONTEN UTAMA -->
+        <div class="flex-1 flex flex-col overflow-hidden relative">
+            
+            <div class="p-6 pb-2 overflow-y-auto">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <button onclick="toggleSidebar()" class="bg-engine-900 border border-engine-accent text-engine-accent hover:bg-engine-accent hover:text-engine-900 px-3 py-1 rounded transition-colors mr-4" title="Sembunyikan/Tampilkan Menu">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <h2 class="text-2xl font-display font-bold text-white uppercase" id="page-title">Monitoring Status Panel</h2>
+                    </div>
+                    <!-- Indikator Waktu Sync Baru -->
+                    <span id="sync-time" class="text-xs text-gray-500 font-mono border border-gray-700 px-2 py-1 rounded bg-engine-900 hidden md:inline-block">
+                        <i class="fas fa-satellite-dish text-engine-accent animate-pulse mr-1"></i> Auto-Sync: Off
+                    </span>
+                </div>
+                
+                <!-- KARTU RINGKASAN DI ATAS -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-engine-800 p-4 rounded-lg neon-border border-l-4 border-l-blue-500 flex items-center">
+                        <div class="p-3 bg-blue-500 bg-opacity-20 rounded-lg mr-4">
+                            <i class="fas fa-clipboard-list text-2xl text-blue-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-sm font-bold">Total Orderan</p>
+                            <h3 class="text-2xl font-display font-bold text-white" id="card-total">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-engine-800 p-4 rounded-lg neon-border border-l-4 border-l-engine-warn flex items-center">
+                        <div class="p-3 bg-orange-500 bg-opacity-20 rounded-lg mr-4">
+                            <i class="fas fa-spinner text-2xl text-engine-warn"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-sm font-bold">Order Aktif / Open</p>
+                            <h3 class="text-2xl font-display font-bold text-white" id="card-active">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-engine-800 p-4 rounded-lg neon-border border-l-4 border-l-purple-500 flex items-center">
+                        <div class="p-3 bg-purple-500 bg-opacity-20 rounded-lg mr-4">
+                            <i class="fas fa-check-double text-2xl text-purple-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-sm font-bold">Progress Approve GL</p>
+                            <h3 class="text-2xl font-display font-bold text-white" id="card-gl">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-engine-800 p-4 rounded-lg neon-border border-l-4 border-l-green-500 flex items-center">
+                        <div class="p-3 bg-green-500 bg-opacity-20 rounded-lg mr-4">
+                            <i class="fas fa-tasks text-2xl text-green-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-sm font-bold">Approve Planner</p>
+                            <h3 class="text-2xl font-display font-bold text-white" id="card-planner">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MENU FILTER PENCARIAN -->
+                <div class="bg-engine-800 p-4 rounded-lg neon-border mb-4">
+                    <div class="flex flex-wrap items-end gap-3">
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-xs text-engine-accent mb-1">Cari Req By / Remark</label>
+                            <input type="text" id="filter-global" placeholder="Ketik kata kunci..." class="w-full bg-engine-900 border border-gray-700 text-sm rounded px-3 py-2 text-white focus:outline-none focus:border-engine-accent">
+                        </div>
+                        <div class="w-1/6 min-w-[120px]">
+                            <label class="block text-xs text-engine-accent mb-1">CN Unit</label>
+                            <input type="text" id="filter-cnunit" placeholder="CN Unit..." class="w-full bg-engine-900 border border-gray-700 text-sm rounded px-3 py-2 text-white focus:outline-none focus:border-engine-accent">
+                        </div>
+                        <div class="w-1/6 min-w-[120px]">
+                            <label class="block text-xs text-engine-accent mb-1">WR Number</label>
+                            <input type="text" id="filter-wr" placeholder="WR Number..." class="w-full bg-engine-900 border border-gray-700 text-sm rounded px-3 py-2 text-white focus:outline-none focus:border-engine-accent">
+                        </div>
+                        <div class="w-1/6 min-w-[120px]">
+                            <label class="block text-xs text-engine-accent mb-1">Rentang Waktu</label>
+                            <select id="filter-date" class="w-full bg-engine-900 border border-gray-700 text-sm rounded px-3 py-2 text-white focus:outline-none focus:border-engine-accent">
+                                <option value="3days">3 Hari Terakhir</option>
+                                <option value="7days">7 Hari Terakhir</option>
+                                <option value="30days">30 Hari Terakhir</option>
+                                <option value="all">Semua Waktu</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button onclick="applyFilters()" class="bg-engine-accent text-engine-900 font-bold py-2 px-4 rounded hover:bg-white transition-colors text-sm">
+                                <i class="fas fa-filter mr-1"></i> FILTER
+                            </button>
+                            <button onclick="resetFilters()" class="bg-gray-700 text-white font-bold py-2 px-4 rounded hover:bg-gray-600 transition-colors text-sm ml-2">
+                                <i class="fas fa-undo mr-1"></i> RESET
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INDIKATOR LOADING -->
+                <div id="loading-indicator" class="hidden text-center py-10">
+                    <i class="fas fa-cog fa-spin text-4xl text-engine-accent mb-3"></i>
+                    <p class="text-engine-accent font-display animate-pulse">Menghubungkan ke Database Excel...</p>
+                </div>
+
+                <!-- TABEL DATA -->
+                <div class="bg-engine-800 rounded-lg neon-border overflow-hidden flex-1 flex flex-col mb-6">
+                    <div class="overflow-x-auto flex-1">
+                        <table class="w-full text-left border-collapse whitespace-nowrap">
+                            <thead>
+                                <tr class="bg-engine-900 text-engine-accent text-sm font-display tracking-wider border-b border-gray-700">
+                                    <th class="p-3">Aksi</th>
+                                    <th class="p-3">Tanggal</th>
+                                    <th class="p-3">Dokumen Order</th>
+                                    <th class="p-3">CN Unit</th>
+                                    <th class="p-3">WR</th>
+                                    <th class="p-3">Req By</th>
+                                    <th class="p-3">Status</th>
+                                    <th class="p-3">Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body" class="text-sm divide-y divide-gray-800">
+                                <!-- Baris tabel akan diisi otomatis dari JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- SISTEM PAGING (PAGINATION) -->
+                    <div class="bg-engine-900 p-3 border-t border-gray-700 flex justify-between items-center text-sm">
+                        <div class="text-gray-400">
+                            Menampilkan <span id="page-info-start" class="text-white font-bold">0</span> - <span id="page-info-end" class="text-white font-bold">0</span> dari <span id="page-info-total" class="text-white font-bold">0</span> data
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="prevPage()" class="px-3 py-1 bg-gray-800 rounded hover:bg-engine-accent hover:text-engine-900 transition-colors border border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed" id="btn-prev">
+                                <i class="fas fa-chevron-left"></i> Prev
+                            </button>
+                            <div id="pagination-numbers" class="flex space-x-1">
+                                <!-- Tombol nomor halaman akan muncul di sini -->
+                            </div>
+                            <button onclick="nextPage()" class="px-3 py-1 bg-gray-800 rounded hover:bg-engine-accent hover:text-engine-900 transition-colors border border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed" id="btn-next">
+                                Next <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= KOTAK DIALOG (MODAL) DETAIL ITEM ================= -->
+    <div id="detail-modal" class="hidden absolute inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm p-4">
+        <div class="bg-engine-800 rounded-lg neon-border w-full max-w-2xl flex flex-col max-h-full">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-engine-900 rounded-t-lg">
+                <h3 class="text-lg font-display font-bold text-engine-accent"><i class="fas fa-microscope mr-2"></i>Detail Kelengkapan Order</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 transition-colors text-xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto" id="modal-content">
+                <!-- Konten Detail diisi via JS saat diklik -->
+            </div>
+            <div class="p-4 border-t border-gray-700 bg-engine-900 rounded-b-lg flex justify-between items-center">
+                <span id="admin-notice" class="text-xs text-gray-500 italic hidden"><i class="fas fa-shield-alt text-engine-accent mr-1"></i> Mode Admin Aktif (Otorisasi Copy/Input)</span>
+                <button onclick="closeModal()" class="bg-gray-700 text-white font-bold py-2 px-6 rounded hover:bg-gray-600 transition-colors ml-auto">TUTUP</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= LOGIKA JAVASCRIPT & DATABASE ================= -->
+    <script>
+        // --- KONFIGURASI DATABASE ---
+        const SHEET_ID = '1eC6VBGlMtLoqZBJARS6p7dzcoG2d697w_xGT3n37lqw'; 
+        
+        // --- VARIABEL SISTEM ---
+        let allData = [];
+        let filteredData = [];
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        let currentMenu = 'dashboard'; 
+        
+        // Timer Auto Refresh
+        let autoSyncInterval; 
+        const REFRESH_RATE = 3 * 60 * 1000; // 3 Menit (1000 ms * 60 = 1 menit)
+        
+        // --- DATA BACKUP ASLI DARI EXCEL ---
+        const getEmbeddedData = () => {
+            return [
+                {
+                    id: 1,
+                    tanggal: '2026-02-22',
+                    cn_number: '8195',
+                    cn_unit: 'DT7293',
+                    wr: 'H33967 C34129 B34122',
+                    req_by: 'RYANDA KUSUMA',
+                    status: 'Pending',
+                    remark: 'keperluan DT7293',
+                    approve_gl: 'Pending',
+                    approve_planner: 'Pending',
+                    detail_item: [
+                        { part: 'AM-N200HD', desc: 'BATTERY', qty: 2 },
+                        { part: '22806', desc: 'TERMINAL BATTERY (+/-)', qty: 2 },
+                        { part: '442467', desc: 'AIR ZURR 1,5 L', qty: 24 },
+                        { part: '07332-52000', desc: 'GASKET COUPLING', qty: 6 }
+                    ]
+                },
+                {
+                    id: 2,
+                    tanggal: '2026-02-22',
+                    cn_number: '8194',
+                    cn_unit: 'GR2032',
+                    wr: '-',
+                    req_by: 'DANDI',
+                    status: 'Pending',
+                    remark: 'HOSE PAP HABIS',
+                    approve_gl: 'Pending',
+                    approve_planner: 'Pending',
+                    detail_item: [
+                        { part: '427005', desc: 'HOSE PAP', qty: 100 },
+                        { part: '91040', desc: 'AIR TAMBAH', qty: 24 }
+                    ]
+                }
+            ];
+        };
+
+        // --- SISTEM TOAST / NOTIFIKASI ---
+        function showNotification(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = message;
+            toast.classList.remove('opacity-0', 'translate-y-20');
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-20');
+            }, 3000);
+        }
+
+        // --- FUNGSI COPY TEXT (CROSS BROWSER) ---
+        function copyTextToClipboard(text) {
+            // Gunakan execCommand karena pada beberapa browser iframe clipboard API diblokir
+            const el = document.createElement('textarea');
+            el.value = text;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showNotification('Teks berhasil di-copy!');
+        }
+
+        // Menjalankan aplikasi saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', () => {
+            if(sessionStorage.getItem('isLoggedIn') === 'true') {
+                document.getElementById('display-username').innerText = sessionStorage.getItem('username');
+                document.getElementById('display-role').innerText = sessionStorage.getItem('username') === 'Admin' ? 'Admin Mode' : 'Standard User';
+                showDashboard();
+            }
+        });
+
+        // --- FUNGSI PENGAMBIL DATA GOOGLE SHEET (DIUBAH KE JSONP UNTUK BYPASS CORS FILE LOKAL) ---
+        function fetchGoogleSheetData(sheetName) {
+            return new Promise((resolve) => {
+                const encodedSheetName = encodeURIComponent(sheetName);
+                // Membuat nama fungsi callback yang unik untuk JSONP
+                const callbackName = 'gvizCallback_' + Math.floor(Math.random() * 1000000);
+                
+                // Menyiapkan fungsi global untuk menangkap data dari script
+                window[callbackName] = function(data) {
+                    delete window[callbackName];
+                    document.body.removeChild(script);
+                    if (data && data.status !== 'error' && data.table) {
+                        resolve(data.table);
+                    } else {
+                        resolve(null);
+                    }
+                };
+
+                // URL Gviz dengan parameter responseHandler (Ini kunci agar bisa bypass file://)
+                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:${callbackName}&sheet=${encodedSheetName}`;
+                
+                // Menyuntikkan tag script ke HTML (metode JSONP)
+                const script = document.createElement('script');
+                script.src = url;
+                script.onerror = () => {
+                    delete window[callbackName];
+                    document.body.removeChild(script);
+                    console.warn(`Gagal terhubung ke Google Sheet: ${sheetName}. Menggunakan Data Backup.`);
+                    resolve(null); // Jika gagal, return null agar menggunakan data fallback
+                };
+                document.body.appendChild(script);
+            });
+        }
+
+        // --- FUNGSI LOGIN ---
+        async function handleLogin(e) {
+            e.preventDefault();
+            const userIn = document.getElementById('username').value;
+            const passIn = document.getElementById('password').value;
+            const btn = e.target.querySelector('button');
+            const errDiv = document.getElementById('login-error');
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> MEMVALIDASI...';
+            errDiv.classList.add('hidden');
+
+            let validUser = null;
+
+            let table = await fetchGoogleSheetData('User');
+            
+            if(table && table.rows.length > 0) {
+                const users = table.rows.map(row => ({
+                    username: row.c[0] ? String(row.c[0].v).trim() : '',
+                    password: row.c[1] ? String(row.c[1].v).trim() : ''
+                }));
+                validUser = users.find(u => u.username === userIn && u.password === passIn);
+            } else {
+                const localUsers = [
+                    { username: 'Admin', password: 'Admin' },
+                    { username: 'Mekanik', password: 'Mekanik1' },
+                    { username: 'Group Leader', password: 'Leader1' },
+                    { username: 'Planner', password: 'Planner1' }
+                ];
+                validUser = localUsers.find(u => u.username === userIn && u.password === passIn);
+            }
+
+            if(validUser) {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('username', validUser.username);
+                document.getElementById('display-username').innerText = validUser.username;
+                document.getElementById('display-role').innerText = validUser.username === 'Admin' ? 'Admin Mode' : 'Standard User';
+                setTimeout(() => showDashboard(), 500); 
+            } else {
+                errDiv.classList.remove('hidden');
+                btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> INITIALIZE LOGIN';
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('isLoggedIn');
+            sessionStorage.removeItem('username');
+            document.getElementById('main-dashboard').classList.add('hidden');
+            document.getElementById('login-page').classList.remove('hidden');
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+
+            // Hentikan Auto-Refresh saat logout
+            if(autoSyncInterval) clearInterval(autoSyncInterval);
+            document.getElementById('sync-time').innerHTML = `<i class="fas fa-satellite-dish text-engine-accent animate-pulse mr-1"></i> Auto-Sync: Off`;
+        }
+
+        // --- FUNGSI DASHBOARD & TABEL ---
+        async function showDashboard() {
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('main-dashboard').classList.remove('hidden');
+            
+            // Tarikan data pertama kali (dengan loading screen)
+            await loadData(false);
+
+            // Menjalankan Auto-Refresh di Latar Belakang secara berulang
+            if(autoSyncInterval) clearInterval(autoSyncInterval);
+            autoSyncInterval = setInterval(() => {
+                loadData(true); // Parameter true menandakan proses berjalan di latar (tanpa animasi loading)
+            }, REFRESH_RATE);
+        }
+
+        async function loadData(isBackground = false) {
+            if(!isBackground) {
+                document.getElementById('loading-indicator').classList.remove('hidden');
+                document.getElementById('table-body').innerHTML = '';
+            }
+            
+            let table = await fetchGoogleSheetData('Raw Data');
+            
+            if(table && table.rows.length > 0) {
+                const getVal = (row, idx, def = '-') => {
+                    if (row.c && row.c.length > idx && row.c[idx] !== null && row.c[idx].v !== null) {
+                        return row.c[idx].v;
+                    }
+                    return def;
+                };
+
+                let parsedData = table.rows.map((row, idx) => {
+                    let rawDate = '';
+                    if (row.c[1]) {
+                        rawDate = row.c[1].f || row.c[1].v;
+                        if(typeof rawDate === 'string' && rawDate.includes('Date')) {
+                            let d = eval("new " + rawDate);
+                            rawDate = d.toISOString().split('T')[0];
+                        }
+                    }
+
+                    let details = [];
+                    const partIndices = [
+                        {pn: 9, desc: 10, qty: 11},   {pn: 13, desc: 14, qty: 15}, 
+                        {pn: 17, desc: 18, qty: 19},  {pn: 21, desc: 22, qty: 23},
+                        {pn: 25, desc: 26, qty: 27},  {pn: 29, desc: 30, qty: 31}, 
+                        {pn: 33, desc: 34, qty: 35},  {pn: 37, desc: 38, qty: 39},
+                        {pn: 41, desc: 42, qty: 43},  {pn: 45, desc: 46, qty: 47}
+                    ];
+                    partIndices.forEach(p => {
+                        let partNum = getVal(row, p.pn, '-');
+                        let d = getVal(row, p.desc, '');
+                        let q = getVal(row, p.qty, 0);
+                        if (d && String(d).trim() !== '' && d !== '-') {
+                            details.push({ part: partNum, desc: d, qty: q });
+                        }
+                    });
+
+                    let glStatus = getVal(row, 52, 'Pending');
+                    let plStatus = getVal(row, 53, 'Pending');
+                    let statusCalc = 'Pending';
+                    if (String(glStatus).toLowerCase().includes('approve') && String(plStatus).toLowerCase().includes('approve')) {
+                        statusCalc = 'Closed';
+                    } else if (String(glStatus).toLowerCase().includes('approve') || String(plStatus).toLowerCase().includes('approve')) {
+                        statusCalc = 'On Progress';
+                    }
+
+                    return {
+                        id: idx,
+                        tanggal: rawDate || '-',
+                        cn_number: getVal(row, 0, '-'),
+                        cn_unit: getVal(row, 6, '-'),
+                        wr: getVal(row, 58, '-'),
+                        req_by: getVal(row, 4, '-'),
+                        remark: getVal(row, 51, '-'),
+                        status: statusCalc,
+                        approve_gl: glStatus,
+                        approve_planner: plStatus,
+                        detail_item: details
+                    }
+                });
+                
+                allData = parsedData.reverse();
+
+                // Memperbarui UI Indikator Waktu Sync jika berhasil
+                const now = new Date();
+                const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+                document.getElementById('sync-time').innerHTML = `<i class="fas fa-satellite-dish text-green-400 animate-pulse mr-1"></i> Terakhir Update: ${timeStr} (Tiap 3m)`;
+
+            } else {
+                if(!isBackground) allData = getEmbeddedData();
+            }
+
+            if(!isBackground) {
+                document.getElementById('loading-indicator').classList.add('hidden');
+            }
+            
+            // Hanya ubah default filter ke 3 Hari jika ini loading awal (Bukan Background Sync)
+            if(!isBackground) {
+                if(currentMenu === 'dashboard') {
+                    document.getElementById('filter-date').value = '3days';
+                } else {
+                    document.getElementById('filter-date').value = 'all';
+                }
+            }
+            
+            applyFilters();
+        }
+
+        function calculateSummaries(dataArray) {
+            const total = dataArray.length;
+            const active = dataArray.filter(d => ['Open', 'On Progress', 'Pending'].includes(d.status)).length;
+            const glApprove = dataArray.filter(d => d.approve_gl && d.approve_gl.toLowerCase().includes('approve')).length;
+            const plannerApprove = dataArray.filter(d => d.approve_planner && d.approve_planner.toLowerCase().includes('approve')).length;
+
+            document.getElementById('card-total').innerText = total;
+            document.getElementById('card-active').innerText = active;
+            document.getElementById('card-gl').innerText = glApprove;
+            document.getElementById('card-planner').innerText = plannerApprove;
+        }
+
+        // --- FUNGSI PENCARIAN & FILTER ---
+        function applyFilters() {
+            const globalQuery = document.getElementById('filter-global').value.toLowerCase();
+            const unitQuery = document.getElementById('filter-cnunit').value.toLowerCase();
+            const wrQuery = document.getElementById('filter-wr').value.toLowerCase();
+            const dateFilter = document.getElementById('filter-date').value;
+
+            const today = new Date();
+            let limitDate = null;
+            if(dateFilter === '3days') {
+                limitDate = new Date(); limitDate.setDate(today.getDate() - 3);
+            } else if(dateFilter === '7days') {
+                limitDate = new Date(); limitDate.setDate(today.getDate() - 7);
+            } else if(dateFilter === '30days') {
+                limitDate = new Date(); limitDate.setDate(today.getDate() - 30);
+            }
+
+            filteredData = allData.filter(item => {
+                let dateMatch = true;
+                if(limitDate && item.tanggal && item.tanggal !== '-') {
+                    const itemDate = new Date(item.tanggal);
+                    dateMatch = itemDate >= limitDate;
+                }
+
+                const globalMatch = Object.values(item).some(val => String(val).toLowerCase().includes(globalQuery));
+                const unitMatch = String(item.cn_unit).toLowerCase().includes(unitQuery);
+                const wrMatch = String(item.wr).toLowerCase().includes(wrQuery);
+
+                return dateMatch && globalMatch && unitMatch && wrMatch;
+            });
+
+            calculateSummaries(filteredData);
+            currentPage = 1;
+            renderTable();
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-global').value = '';
+            document.getElementById('filter-cnunit').value = '';
+            document.getElementById('filter-wr').value = '';
+            document.getElementById('filter-date').value = currentMenu === 'dashboard' ? '3days' : 'all';
+            applyFilters();
+        }
+
+        // --- FUNGSI MENGGAMBAR TABEL ---
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            const startIdx = (currentPage - 1) * itemsPerPage;
+            const endIdx = startIdx + itemsPerPage;
+            const pageData = filteredData.slice(startIdx, endIdx);
+
+            if(pageData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-500 font-bold"><i class="fas fa-inbox mr-2"></i>Tidak ada data ditemukan</td></tr>`;
+            } else {
+                pageData.forEach(item => {
+                    let statusColor = 'bg-gray-600';
+                    let st = item.status.toLowerCase();
+                    if(st.includes('open') || st.includes('progress') || st.includes('pending')) statusColor = 'bg-engine-warn text-engine-900';
+                    else if(st.includes('close')) statusColor = 'bg-green-500 text-white';
+                    
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-800 transition-colors group';
+                    tr.innerHTML = `
+                        <td class="p-3">
+                            <button onclick="viewDetail(${item.id})" class="text-engine-accent hover:text-white border border-engine-accent hover:bg-engine-accent px-2 py-1 rounded text-xs font-bold transition-all">
+                                <i class="fas fa-eye mr-1"></i> LIHAT
+                            </button>
+                        </td>
+                        <td class="p-3 font-bold">${item.tanggal}</td>
+                        <td class="p-3 text-gray-300 font-mono text-xs">${item.cn_number}</td>
+                        <td class="p-3 text-white font-bold">${item.cn_unit}</td>
+                        <td class="p-3 font-mono text-gray-300">${item.wr}</td>
+                        <td class="p-3">${item.req_by}</td>
+                        <td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ${statusColor}">${item.status}</span></td>
+                        <td class="p-3 text-gray-400 max-w-[200px] truncate" title="${item.remark}">${item.remark}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+            updatePagination();
+        }
+
+        function updatePagination() {
+            const totalItems = filteredData.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+            
+            document.getElementById('page-info-total').innerText = totalItems;
+            document.getElementById('page-info-start').innerText = totalItems === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1;
+            document.getElementById('page-info-end').innerText = Math.min(currentPage * itemsPerPage, totalItems);
+
+            document.getElementById('btn-prev').disabled = currentPage === 1;
+            document.getElementById('btn-next').disabled = currentPage === totalPages;
+
+            const numContainer = document.getElementById('pagination-numbers');
+            numContainer.innerHTML = '';
+            
+            let startP = Math.max(1, currentPage - 2);
+            let endP = Math.min(totalPages, startP + 4);
+            if(endP - startP < 4) startP = Math.max(1, endP - 4);
+
+            for(let i=startP; i<=endP; i++) {
+                const btn = document.createElement('button');
+                btn.className = `px-3 py-1 rounded border transition-colors ${i === currentPage ? 'bg-engine-accent text-engine-900 border-engine-accent font-bold' : 'bg-engine-900 text-gray-400 border-gray-700 hover:text-white'}`;
+                btn.innerText = i;
+                btn.onclick = () => { currentPage = i; renderTable(); };
+                numContainer.appendChild(btn);
+            }
+        }
+
+        function nextPage() {
+            if(currentPage < Math.ceil(filteredData.length / itemsPerPage)) {
+                currentPage++; renderTable();
+            }
+        }
+
+        function prevPage() {
+            if(currentPage > 1) {
+                currentPage--; renderTable();
+            }
+        }
+
+        function changeMenu(menu) {
+            currentMenu = menu;
+            
+            document.querySelectorAll('.menu-item').forEach(el => {
+                el.classList.remove('bg-engine-900', 'text-engine-accent', 'border', 'border-engine-accent');
+                el.classList.add('text-gray-400');
+            });
+            
+            const activeEl = document.getElementById(`menu-${menu}`);
+            activeEl.classList.remove('text-gray-400');
+            activeEl.classList.add('bg-engine-900', 'text-engine-accent', 'border', 'border-engine-accent');
+
+            if(menu === 'dashboard') {
+                document.getElementById('page-title').innerText = 'Monitoring Status Panel (3 Hari Terakhir)';
+                document.getElementById('filter-date').value = '3days';
+            } else {
+                document.getElementById('page-title').innerText = 'Data Semua Orderan (Historical)';
+                document.getElementById('filter-date').value = 'all';
+            }
+            applyFilters();
+        }
+
+        // --- FUNGSI TOGGLE SIDEBAR (SEMBUNYIKAN/TAMPILKAN) ---
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('hidden');
+        }
+
+        // --- FUNGSI MUNCULKAN DETAIL (MODAL) DENGAN OTORISASI ---
+        function viewDetail(id) {
+            const item = allData.find(d => d.id === id);
+            if(!item) return;
+
+            // Pengecekan apakah user login sebagai Admin
+            const isAdmin = sessionStorage.getItem('username') === 'Admin';
+            const adminNotice = document.getElementById('admin-notice');
+            if (isAdmin) adminNotice.classList.remove('hidden'); else adminNotice.classList.add('hidden');
+
+            const content = document.getElementById('modal-content');
+
+            // Logika Format WR dan Input (Untuk Admin)
+            let wrSectionHtml = '';
+            const isWrEmpty = !item.wr || item.wr.trim() === '' || item.wr === '-';
+            
+            if (isAdmin && isWrEmpty) {
+                // Jika Admin dan WR kosong -> Munculkan form input WR
+                wrSectionHtml = `
+                    <div class="flex mt-1">
+                        <input type="text" id="input-wr-${item.id}" class="w-full bg-engine-900 border border-gray-700 rounded-l px-2 py-1 text-white text-sm focus:outline-none focus:border-engine-accent" placeholder="Input nomor WR...">
+                        <button onclick="saveWR(${item.id})" class="bg-engine-accent text-engine-900 font-bold px-3 py-1 rounded-r text-sm hover:bg-white transition-colors">SAVE</button>
+                    </div>
+                `;
+            } else {
+                // Tampilan Normal
+                wrSectionHtml = `<p class="text-lg font-mono text-white">${item.wr}</p>`;
+            }
+
+            // --- Logika Pembuatan Tabel HTML untuk Detail Item ---
+            let tableDetailHtml = '';
+            if (item.detail_item && item.detail_item.length > 0) {
+                let tableRows = item.detail_item.map(d => `
+                    <tr class="hover:bg-gray-800 transition-colors">
+                        <td class="p-2 border border-gray-700 font-mono text-gray-300 text-sm">${d.part}</td>
+                        <td class="p-2 border border-gray-700 text-white text-sm">${d.desc}</td>
+                        <td class="p-2 border border-gray-700 text-center font-bold text-engine-accent">${d.qty}</td>
+                    </tr>
+                `).join('');
+
+                tableDetailHtml = `
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse border border-gray-700 mt-2">
+                            <thead class="bg-engine-800 text-engine-accent text-xs uppercase tracking-wider">
+                                <tr>
+                                    <th class="p-3 border border-gray-700 w-1/4">Part Number</th>
+                                    <th class="p-3 border border-gray-700">Description</th>
+                                    <th class="p-3 border border-gray-700 w-16 text-center">Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700">
+                                ${tableRows}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                tableDetailHtml = '<div class="p-4 bg-gray-800 rounded text-center text-gray-500 italic border border-gray-700">Tidak ada detail part yang dilampirkan.</div>';
+            }
+
+            // Format copy untuk item (dipisahkan dengan Tab agar otomatis jadi kolom jika dipaste di Excel)
+            const copyTableData = item.detail_item ? item.detail_item.map(d => `${d.part}\t${d.desc}\t${d.qty}`).join('\n') : '';
+            // HTML Tombol Copy (hanya jika admin)
+            const copyRemarkBtn = isAdmin ? `<button onclick="copyTextToClipboard('${item.remark.replace(/'/g, "\\'")}')" class="text-xs text-white bg-gray-700 hover:bg-engine-accent hover:text-engine-900 px-2 py-1 rounded transition-colors"><i class="fas fa-copy"></i> Copy</button>` : '';
+            const copyItemBtn = (isAdmin && item.detail_item.length > 0) ? `<button onclick="copyTextToClipboard('${copyTableData.replace(/'/g, "\\'")}')" class="text-xs text-white bg-gray-700 hover:bg-engine-accent hover:text-engine-900 px-2 py-1 rounded transition-colors"><i class="fas fa-copy"></i> Copy to Excel</button>` : '';
+
+            content.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="space-y-4">
+                        <div class="border-b border-gray-700 pb-2">
+                            <p class="text-xs text-gray-400 uppercase tracking-widest">Identitas Unit</p>
+                            <h4 class="text-xl font-bold text-white">${item.cn_unit}</h4>
+                            <p class="text-sm font-mono text-engine-accent">Dokumen: ${item.cn_number}</p>
+                        </div>
+                        <div class="border-b border-gray-700 pb-2">
+                            <p class="text-xs text-gray-400 uppercase tracking-widest">Referensi WR</p>
+                            ${wrSectionHtml}
+                            <p class="text-sm text-gray-400 mt-1"><i class="far fa-calendar-alt mr-1"></i> ${item.tanggal}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase tracking-widest">Diminta Oleh</p>
+                            <p class="text-lg text-white font-bold"><i class="fas fa-user-tag text-engine-accent mr-2"></i>${item.req_by}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4 bg-engine-900 p-4 rounded border border-gray-700">
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Status Utama</p>
+                            <span class="px-3 py-1 bg-gray-700 text-white rounded text-sm font-bold border border-gray-500">${item.status}</span>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Progress GL</p>
+                            <p class="text-sm font-bold ${String(item.approve_gl).toLowerCase().includes('approve') ? 'text-green-400' : 'text-engine-warn'}"><i class="fas fa-check-circle mr-1"></i>${item.approve_gl}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Progress Planner</p>
+                            <p class="text-sm font-bold ${String(item.approve_planner).toLowerCase().includes('approve') ? 'text-green-400' : 'text-engine-warn'}"><i class="fas fa-check-circle mr-1"></i>${item.approve_planner}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <div class="flex justify-between items-center border-b border-engine-accent mb-2 pb-1">
+                        <p class="text-xs text-engine-accent uppercase tracking-widest"><i class="fas fa-comment-dots mr-1"></i>Remark / Catatan</p>
+                        ${copyRemarkBtn}
+                    </div>
+                    <div class="bg-gray-800 p-3 rounded text-sm text-gray-300 italic border-l-4 border-l-engine-accent">
+                        "${item.remark}"
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center border-b border-engine-accent mb-2 pb-1">
+                        <p class="text-xs text-engine-accent uppercase tracking-widest"><i class="fas fa-box-open mr-1"></i>Detail Item Request</p>
+                        ${copyItemBtn}
+                    </div>
+                    <div class="bg-engine-900 p-2 rounded border border-gray-700 w-full">
+                        ${tableDetailHtml}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('detail-modal').classList.remove('hidden');
+        }
+
+        // --- FUNGSI SAVE WR LOKAL (UNTUK ADMIN) ---
+        function saveWR(id) {
+            const inputField = document.getElementById(`input-wr-${id}`);
+            const newWR = inputField.value.trim();
+
+            if(!newWR) {
+                showNotification('Nomor WR Tidak Boleh Kosong!');
+                return;
+            }
+
+            // Update data di memori lokal tabel
+            const itemIndex = allData.findIndex(d => d.id === id);
+            if(itemIndex > -1) {
+                allData[itemIndex].wr = newWR;
+                showNotification('WR Berhasil Disimpan di Memori Lokal!');
+                applyFilters(); // Render ulang tabel background
+                viewDetail(id); // Muat ulang modal
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+        }
+
+    </script>
+</body>
+</html>
