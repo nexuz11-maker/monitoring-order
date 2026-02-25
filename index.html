@@ -77,7 +77,7 @@
             <form id="login-form" onsubmit="handleLogin(event)">
                 <div class="mb-4">
                     <label class="block text-engine-accent text-sm font-bold mb-2"><i class="fas fa-user mr-2"></i>Username</label>
-                    <input type="text" id="username" class="w-full bg-engine-900 border border-gray-700 rounded py-2 px-3 text-white focus:outline-none focus:border-engine-accent transition-colors" required placeholder="Contoh: Admin">
+                    <input type="text" id="username" class="w-full bg-engine-900 border border-gray-700 rounded py-2 px-3 text-white focus:outline-none focus:border-engine-accent transition-colors" required placeholder="Contoh: Group Leader">
                 </div>
                 <div class="mb-6">
                     <label class="block text-engine-accent text-sm font-bold mb-2"><i class="fas fa-lock mr-2"></i>Password</label>
@@ -146,7 +146,6 @@
                         </button>
                         <h2 class="text-2xl font-display font-bold text-white uppercase" id="page-title">Monitoring Status Panel</h2>
                     </div>
-                    <!-- Indikator Waktu Sync Baru -->
                     <span id="sync-time" class="text-xs text-gray-500 font-mono border border-gray-700 px-2 py-1 rounded bg-engine-900 hidden md:inline-block">
                         <i class="fas fa-satellite-dish text-engine-accent animate-pulse mr-1"></i> Auto-Sync: Off
                     </span>
@@ -292,6 +291,7 @@
             </div>
             <div class="p-4 border-t border-gray-700 bg-engine-900 rounded-b-lg flex justify-between items-center">
                 <span id="admin-notice" class="text-xs text-gray-500 italic hidden"><i class="fas fa-shield-alt text-engine-accent mr-1"></i> Mode Admin Aktif (Otorisasi Copy/Input)</span>
+                <span id="approval-notice" class="text-xs text-gray-500 italic hidden"><i class="fas fa-user-check text-engine-accent mr-1"></i> Mode Approval Aktif</span>
                 <button onclick="closeModal()" class="bg-gray-700 text-white font-bold py-2 px-6 rounded hover:bg-gray-600 transition-colors ml-auto">TUTUP</button>
             </div>
         </div>
@@ -302,16 +302,20 @@
         // --- KONFIGURASI DATABASE ---
         const SHEET_ID = '1eC6VBGlMtLoqZBJARS6p7dzcoG2d697w_xGT3n37lqw'; 
         
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // PENTING: Masukkan URL Aplikasi Web (GAS) Anda di sini. 
+        // Biarkan kosong ('') jika belum ada, maka web akan save mode lokal.
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycby-rv0WbghlngRnHYBN6xb6SX2NMyacbgiOw5KX1maC/dev'; 
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
         // --- VARIABEL SISTEM ---
         let allData = [];
         let filteredData = [];
         let currentPage = 1;
         const itemsPerPage = 10;
         let currentMenu = 'dashboard'; 
-        
-        // Timer Auto Refresh
         let autoSyncInterval; 
-        const REFRESH_RATE = 3 * 60 * 1000; // 3 Menit (1000 ms * 60 = 1 menit)
+        const REFRESH_RATE = 3 * 60 * 1000; // 3 Menit
         
         // --- DATA BACKUP ASLI DARI EXCEL ---
         const getEmbeddedData = () => {
@@ -330,8 +334,7 @@
                     detail_item: [
                         { part: 'AM-N200HD', desc: 'BATTERY', qty: 2 },
                         { part: '22806', desc: 'TERMINAL BATTERY (+/-)', qty: 2 },
-                        { part: '442467', desc: 'AIR ZURR 1,5 L', qty: 24 },
-                        { part: '07332-52000', desc: 'GASKET COUPLING', qty: 6 }
+                        { part: '442467', desc: 'AIR ZURR 1,5 L', qty: 24 }
                     ]
                 },
                 {
@@ -358,15 +361,11 @@
             const toast = document.getElementById('toast');
             document.getElementById('toast-msg').innerText = message;
             toast.classList.remove('opacity-0', 'translate-y-20');
-            
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-20');
-            }, 3000);
+            setTimeout(() => { toast.classList.add('opacity-0', 'translate-y-20'); }, 3000);
         }
 
-        // --- FUNGSI COPY TEXT (CROSS BROWSER) ---
+        // --- FUNGSI COPY TEXT ---
         function copyTextToClipboard(text) {
-            // Gunakan execCommand karena pada beberapa browser iframe clipboard API diblokir
             const el = document.createElement('textarea');
             el.value = text;
             document.body.appendChild(el);
@@ -376,23 +375,22 @@
             showNotification('Teks berhasil di-copy!');
         }
 
-        // Menjalankan aplikasi saat halaman dimuat
         document.addEventListener('DOMContentLoaded', () => {
             if(sessionStorage.getItem('isLoggedIn') === 'true') {
-                document.getElementById('display-username').innerText = sessionStorage.getItem('username');
-                document.getElementById('display-role').innerText = sessionStorage.getItem('username') === 'Admin' ? 'Admin Mode' : 'Standard User';
+                const username = sessionStorage.getItem('username');
+                const level = sessionStorage.getItem('level');
+                document.getElementById('display-username').innerText = username;
+                document.getElementById('display-role').innerText = level === 'Admin' ? 'Admin Mode' : `Mode ${level}`;
                 showDashboard();
             }
         });
 
-        // --- FUNGSI PENGAMBIL DATA GOOGLE SHEET (DIUBAH KE JSONP UNTUK BYPASS CORS FILE LOKAL) ---
+        // --- FUNGSI PENGAMBIL DATA GOOGLE SHEET (JSONP) ---
         function fetchGoogleSheetData(sheetName) {
             return new Promise((resolve) => {
                 const encodedSheetName = encodeURIComponent(sheetName);
-                // Membuat nama fungsi callback yang unik untuk JSONP
                 const callbackName = 'gvizCallback_' + Math.floor(Math.random() * 1000000);
                 
-                // Menyiapkan fungsi global untuk menangkap data dari script
                 window[callbackName] = function(data) {
                     delete window[callbackName];
                     document.body.removeChild(script);
@@ -403,17 +401,14 @@
                     }
                 };
 
-                // URL Gviz dengan parameter responseHandler (Ini kunci agar bisa bypass file://)
                 const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:${callbackName}&sheet=${encodedSheetName}`;
                 
-                // Menyuntikkan tag script ke HTML (metode JSONP)
                 const script = document.createElement('script');
                 script.src = url;
                 script.onerror = () => {
                     delete window[callbackName];
                     document.body.removeChild(script);
-                    console.warn(`Gagal terhubung ke Google Sheet: ${sheetName}. Menggunakan Data Backup.`);
-                    resolve(null); // Jika gagal, return null agar menggunakan data fallback
+                    resolve(null); 
                 };
                 document.body.appendChild(script);
             });
@@ -424,28 +419,28 @@
             e.preventDefault();
             const userIn = document.getElementById('username').value;
             const passIn = document.getElementById('password').value;
-            const btn = e.target.querySelector('button');
+            const btn = document.getElementById('btn-login-submit');
             const errDiv = document.getElementById('login-error');
             
             btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> MEMVALIDASI...';
             errDiv.classList.add('hidden');
 
             let validUser = null;
-
             let table = await fetchGoogleSheetData('User');
             
             if(table && table.rows.length > 0) {
                 const users = table.rows.map(row => ({
                     username: row.c[0] ? String(row.c[0].v).trim() : '',
-                    password: row.c[1] ? String(row.c[1].v).trim() : ''
+                    password: row.c[1] ? String(row.c[1].v).trim() : '',
+                    level: row.c[2] ? String(row.c[2].v).trim() : 'Mekanik' 
                 }));
                 validUser = users.find(u => u.username === userIn && u.password === passIn);
             } else {
                 const localUsers = [
-                    { username: 'Admin', password: 'Admin' },
-                    { username: 'Mekanik', password: 'Mekanik1' },
-                    { username: 'Group Leader', password: 'Leader1' },
-                    { username: 'Planner', password: 'Planner1' }
+                    { username: 'Admin', password: 'Admin', level: 'Admin' },
+                    { username: 'Mekanik', password: 'Mekanik1', level: 'Mekanik' },
+                    { username: 'Group Leader', password: 'Leader1', level: 'GL' },
+                    { username: 'Planner', password: 'Planner1', level: 'Planner' }
                 ];
                 validUser = localUsers.find(u => u.username === userIn && u.password === passIn);
             }
@@ -453,11 +448,12 @@
             if(validUser) {
                 sessionStorage.setItem('isLoggedIn', 'true');
                 sessionStorage.setItem('username', validUser.username);
+                sessionStorage.setItem('level', validUser.level);
+                
                 document.getElementById('display-username').innerText = validUser.username;
-                document.getElementById('display-role').innerText = validUser.username === 'Admin' ? 'Admin Mode' : 'Standard User';
+                document.getElementById('display-role').innerText = validUser.level === 'Admin' ? 'Admin Mode' : `Mode ${validUser.level}`;
                 
                 setTimeout(() => {
-                    // Reset langsung tombol agar saat dilogout sudah kembali normal
                     btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> INITIALIZE LOGIN';
                     showDashboard();
                 }, 500); 
@@ -470,21 +466,16 @@
         function logout() {
             sessionStorage.removeItem('isLoggedIn');
             sessionStorage.removeItem('username');
+            sessionStorage.removeItem('level');
             document.getElementById('main-dashboard').classList.add('hidden');
             document.getElementById('login-page').classList.remove('hidden');
-            
-            // Bersihkan form dan peringatan error
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
             document.getElementById('login-error').classList.add('hidden');
 
-            // Kembalikan Tombol Login Ke State Awal (Double Check)
             const loginBtn = document.getElementById('btn-login-submit');
-            if(loginBtn) {
-                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> INITIALIZE LOGIN';
-            }
+            if(loginBtn) loginBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> INITIALIZE LOGIN';
 
-            // Hentikan Auto-Refresh saat logout
             if(autoSyncInterval) clearInterval(autoSyncInterval);
             document.getElementById('sync-time').innerHTML = `<i class="fas fa-satellite-dish text-engine-accent animate-pulse mr-1"></i> Auto-Sync: Off`;
         }
@@ -493,15 +484,10 @@
         async function showDashboard() {
             document.getElementById('login-page').classList.add('hidden');
             document.getElementById('main-dashboard').classList.remove('hidden');
-            
-            // Tarikan data pertama kali (dengan loading screen)
             await loadData(false);
 
-            // Menjalankan Auto-Refresh di Latar Belakang secara berulang
             if(autoSyncInterval) clearInterval(autoSyncInterval);
-            autoSyncInterval = setInterval(() => {
-                loadData(true); // Parameter true menandakan proses berjalan di latar (tanpa animasi loading)
-            }, REFRESH_RATE);
+            autoSyncInterval = setInterval(() => { loadData(true); }, REFRESH_RATE);
         }
 
         async function loadData(isBackground = false) {
@@ -514,9 +500,7 @@
             
             if(table && table.rows.length > 0) {
                 const getVal = (row, idx, def = '-') => {
-                    if (row.c && row.c.length > idx && row.c[idx] !== null && row.c[idx].v !== null) {
-                        return row.c[idx].v;
-                    }
+                    if (row.c && row.c.length > idx && row.c[idx] !== null && row.c[idx].v !== null) return row.c[idx].v;
                     return def;
                 };
 
@@ -542,19 +526,14 @@
                         let partNum = getVal(row, p.pn, '-');
                         let d = getVal(row, p.desc, '');
                         let q = getVal(row, p.qty, 0);
-                        if (d && String(d).trim() !== '' && d !== '-') {
-                            details.push({ part: partNum, desc: d, qty: q });
-                        }
+                        if (d && String(d).trim() !== '' && d !== '-') details.push({ part: partNum, desc: d, qty: q });
                     });
 
                     let glStatus = getVal(row, 52, 'Pending');
                     let plStatus = getVal(row, 53, 'Pending');
                     let statusCalc = 'Pending';
-                    if (String(glStatus).toLowerCase().includes('approve') && String(plStatus).toLowerCase().includes('approve')) {
-                        statusCalc = 'Closed';
-                    } else if (String(glStatus).toLowerCase().includes('approve') || String(plStatus).toLowerCase().includes('approve')) {
-                        statusCalc = 'On Progress';
-                    }
+                    if (String(glStatus).toLowerCase().includes('approve') && String(plStatus).toLowerCase().includes('approve')) statusCalc = 'Closed';
+                    else if (String(glStatus).toLowerCase().includes('approve') || String(plStatus).toLowerCase().includes('approve')) statusCalc = 'On Progress';
 
                     return {
                         id: idx,
@@ -571,9 +550,22 @@
                     }
                 });
                 
+                if (allData.length > 0 && isBackground) {
+                    parsedData.forEach(newData => {
+                        const oldItem = allData.find(old => old.id === newData.id);
+                        if (oldItem) {
+                            if(oldItem.approve_gl === 'Approved') newData.approve_gl = 'Approved';
+                            if(oldItem.approve_planner === 'Approved') newData.approve_planner = 'Approved';
+                            newData.wr = oldItem.wr;
+                            
+                            if (newData.approve_gl === 'Approved' && newData.approve_planner === 'Approved') newData.status = 'Closed';
+                            else if (newData.approve_gl === 'Approved' || newData.approve_planner === 'Approved') newData.status = 'On Progress';
+                        }
+                    });
+                }
+
                 allData = parsedData.reverse();
 
-                // Memperbarui UI Indikator Waktu Sync jika berhasil
                 const now = new Date();
                 const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
                 document.getElementById('sync-time').innerHTML = `<i class="fas fa-satellite-dish text-green-400 animate-pulse mr-1"></i> Terakhir Update: ${timeStr} (Tiap 3m)`;
@@ -582,17 +574,11 @@
                 if(!isBackground) allData = getEmbeddedData();
             }
 
-            if(!isBackground) {
-                document.getElementById('loading-indicator').classList.add('hidden');
-            }
+            if(!isBackground) document.getElementById('loading-indicator').classList.add('hidden');
             
-            // Hanya ubah default filter ke 3 Hari jika ini loading awal (Bukan Background Sync)
             if(!isBackground) {
-                if(currentMenu === 'dashboard') {
-                    document.getElementById('filter-date').value = '3days';
-                } else {
-                    document.getElementById('filter-date').value = 'all';
-                }
+                if(currentMenu === 'dashboard') document.getElementById('filter-date').value = '3days';
+                else document.getElementById('filter-date').value = 'all';
             }
             
             applyFilters();
@@ -610,7 +596,6 @@
             document.getElementById('card-planner').innerText = plannerApprove;
         }
 
-        // --- FUNGSI PENCARIAN & FILTER ---
         function applyFilters() {
             const globalQuery = document.getElementById('filter-global').value.toLowerCase();
             const unitQuery = document.getElementById('filter-cnunit').value.toLowerCase();
@@ -619,13 +604,9 @@
 
             const today = new Date();
             let limitDate = null;
-            if(dateFilter === '3days') {
-                limitDate = new Date(); limitDate.setDate(today.getDate() - 3);
-            } else if(dateFilter === '7days') {
-                limitDate = new Date(); limitDate.setDate(today.getDate() - 7);
-            } else if(dateFilter === '30days') {
-                limitDate = new Date(); limitDate.setDate(today.getDate() - 30);
-            }
+            if(dateFilter === '3days') { limitDate = new Date(); limitDate.setDate(today.getDate() - 3); }
+            else if(dateFilter === '7days') { limitDate = new Date(); limitDate.setDate(today.getDate() - 7); }
+            else if(dateFilter === '30days') { limitDate = new Date(); limitDate.setDate(today.getDate() - 30); }
 
             filteredData = allData.filter(item => {
                 let dateMatch = true;
@@ -654,7 +635,6 @@
             applyFilters();
         }
 
-        // --- FUNGSI MENGGAMBAR TABEL ---
         function renderTable() {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
@@ -721,26 +701,16 @@
             }
         }
 
-        function nextPage() {
-            if(currentPage < Math.ceil(filteredData.length / itemsPerPage)) {
-                currentPage++; renderTable();
-            }
-        }
-
-        function prevPage() {
-            if(currentPage > 1) {
-                currentPage--; renderTable();
-            }
-        }
+        function nextPage() { if(currentPage < Math.ceil(filteredData.length / itemsPerPage)) { currentPage++; renderTable(); } }
+        function prevPage() { if(currentPage > 1) { currentPage--; renderTable(); } }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden'); }
 
         function changeMenu(menu) {
             currentMenu = menu;
-            
             document.querySelectorAll('.menu-item').forEach(el => {
                 el.classList.remove('bg-engine-900', 'text-engine-accent', 'border', 'border-engine-accent');
                 el.classList.add('text-gray-400');
             });
-            
             const activeEl = document.getElementById(`menu-${menu}`);
             activeEl.classList.remove('text-gray-400');
             activeEl.classList.add('bg-engine-900', 'text-engine-accent', 'border', 'border-engine-accent');
@@ -755,42 +725,48 @@
             applyFilters();
         }
 
-        // --- FUNGSI TOGGLE SIDEBAR (SEMBUNYIKAN/TAMPILKAN) ---
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('hidden');
-        }
-
-        // --- FUNGSI MUNCULKAN DETAIL (MODAL) DENGAN OTORISASI ---
+        // --- FUNGSI MUNCULKAN DETAIL (MODAL) ---
         function viewDetail(id) {
             const item = allData.find(d => d.id === id);
             if(!item) return;
 
-            // Pengecekan apakah user login sebagai Admin
-            const isAdmin = sessionStorage.getItem('username') === 'Admin';
+            const userLevel = sessionStorage.getItem('level');
+            const isAdmin = userLevel === 'Admin';
+            
             const adminNotice = document.getElementById('admin-notice');
-            if (isAdmin) adminNotice.classList.remove('hidden'); else adminNotice.classList.add('hidden');
+            const approvalNotice = document.getElementById('approval-notice');
+            adminNotice.classList.add('hidden');
+            approvalNotice.classList.add('hidden');
+            if (isAdmin) adminNotice.classList.remove('hidden');
+            if (userLevel === 'GL' || userLevel === 'Planner') approvalNotice.classList.remove('hidden');
 
             const content = document.getElementById('modal-content');
 
-            // Logika Format WR dan Input (Untuk Admin)
             let wrSectionHtml = '';
             const isWrEmpty = !item.wr || item.wr.trim() === '' || item.wr === '-';
-            
             if (isAdmin && isWrEmpty) {
-                // Jika Admin dan WR kosong -> Munculkan form input WR
                 wrSectionHtml = `
                     <div class="flex mt-1">
                         <input type="text" id="input-wr-${item.id}" class="w-full bg-engine-900 border border-gray-700 rounded-l px-2 py-1 text-white text-sm focus:outline-none focus:border-engine-accent" placeholder="Input nomor WR...">
-                        <button onclick="saveWR(${item.id})" class="bg-engine-accent text-engine-900 font-bold px-3 py-1 rounded-r text-sm hover:bg-white transition-colors">SAVE</button>
+                        <button id="btn-save-wr-${item.id}" onclick="saveWR(${item.id})" class="bg-engine-accent text-engine-900 font-bold px-3 py-1 rounded-r text-sm hover:bg-white transition-colors">SAVE</button>
                     </div>
                 `;
             } else {
-                // Tampilan Normal
                 wrSectionHtml = `<p class="text-lg font-mono text-white">${item.wr}</p>`;
             }
 
-            // --- Logika Pembuatan Tabel HTML untuk Detail Item ---
+            let approveGLBtnHtml = '';
+            let approvePlBtnHtml = '';
+            const isGLApproved = String(item.approve_gl).toLowerCase().includes('approve');
+            const isPlApproved = String(item.approve_planner).toLowerCase().includes('approve');
+
+            if (userLevel === 'GL' && !isGLApproved) {
+                approveGLBtnHtml = `<button id="btn-approve-gl-${item.id}" onclick="approveOrder(${item.id}, 'GL')" class="mt-2 w-full bg-green-600 hover:bg-green-500 text-white font-bold py-1 px-3 rounded shadow-lg transition-colors border border-green-400"><i class="fas fa-stamp mr-1"></i> VALIDASI GL</button>`;
+            }
+            if (userLevel === 'Planner' && !isPlApproved) {
+                approvePlBtnHtml = `<button id="btn-approve-pl-${item.id}" onclick="approveOrder(${item.id}, 'Planner')" class="mt-2 w-full bg-green-600 hover:bg-green-500 text-white font-bold py-1 px-3 rounded shadow-lg transition-colors border border-green-400"><i class="fas fa-stamp mr-1"></i> VALIDASI PLANNER</button>`;
+            }
+
             let tableDetailHtml = '';
             if (item.detail_item && item.detail_item.length > 0) {
                 let tableRows = item.detail_item.map(d => `
@@ -821,9 +797,7 @@
                 tableDetailHtml = '<div class="p-4 bg-gray-800 rounded text-center text-gray-500 italic border border-gray-700">Tidak ada detail part yang dilampirkan.</div>';
             }
 
-            // Format copy untuk item (dipisahkan dengan Tab agar otomatis jadi kolom jika dipaste di Excel)
             const copyTableData = item.detail_item ? item.detail_item.map(d => `${d.part}\t${d.desc}\t${d.qty}`).join('\n') : '';
-            // HTML Tombol Copy (hanya jika admin)
             const copyRemarkBtn = isAdmin ? `<button onclick="copyTextToClipboard('${item.remark.replace(/'/g, "\\'")}')" class="text-xs text-white bg-gray-700 hover:bg-engine-accent hover:text-engine-900 px-2 py-1 rounded transition-colors"><i class="fas fa-copy"></i> Copy</button>` : '';
             const copyItemBtn = (isAdmin && item.detail_item.length > 0) ? `<button onclick="copyTextToClipboard('${copyTableData.replace(/'/g, "\\'")}')" class="text-xs text-white bg-gray-700 hover:bg-engine-accent hover:text-engine-900 px-2 py-1 rounded transition-colors"><i class="fas fa-copy"></i> Copy to Excel</button>` : '';
 
@@ -851,13 +825,15 @@
                             <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Status Utama</p>
                             <span class="px-3 py-1 bg-gray-700 text-white rounded text-sm font-bold border border-gray-500">${item.status}</span>
                         </div>
-                        <div>
+                        <div class="bg-gray-800 p-2 rounded border border-gray-600">
                             <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Progress GL</p>
-                            <p class="text-sm font-bold ${String(item.approve_gl).toLowerCase().includes('approve') ? 'text-green-400' : 'text-engine-warn'}"><i class="fas fa-check-circle mr-1"></i>${item.approve_gl}</p>
+                            <p class="text-sm font-bold ${isGLApproved ? 'text-green-400' : 'text-engine-warn'}"><i class="fas fa-check-circle mr-1"></i>${item.approve_gl}</p>
+                            ${approveGLBtnHtml}
                         </div>
-                        <div>
+                        <div class="bg-gray-800 p-2 rounded border border-gray-600">
                             <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Progress Planner</p>
-                            <p class="text-sm font-bold ${String(item.approve_planner).toLowerCase().includes('approve') ? 'text-green-400' : 'text-engine-warn'}"><i class="fas fa-check-circle mr-1"></i>${item.approve_planner}</p>
+                            <p class="text-sm font-bold ${isPlApproved ? 'text-green-400' : 'text-engine-warn'}"><i class="fas fa-check-circle mr-1"></i>${item.approve_planner}</p>
+                            ${approvePlBtnHtml}
                         </div>
                     </div>
                 </div>
@@ -886,23 +862,79 @@
             document.getElementById('detail-modal').classList.remove('hidden');
         }
 
-        // --- FUNGSI SAVE WR LOKAL (UNTUK ADMIN) ---
-        function saveWR(id) {
+        // --- FUNGSI UPDATE KE GOOGLE SHEETS VIA API ---
+        async function saveWR(id) {
             const inputField = document.getElementById(`input-wr-${id}`);
+            const btn = document.getElementById(`btn-save-wr-${id}`);
             const newWR = inputField.value.trim();
 
-            if(!newWR) {
-                showNotification('Nomor WR Tidak Boleh Kosong!');
-                return;
+            if(!newWR) { showNotification('Nomor WR Tidak Boleh Kosong!'); return; }
+
+            // Loading state
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+            btn.disabled = true;
+
+            // Jika API sudah di-setting, kirim ke Google Sheets
+            if(GAS_API_URL && GAS_API_URL !== '') {
+                try {
+                    await fetch(GAS_API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'save_wr', id: id, value: newWR })
+                    });
+                } catch(e) {
+                    console.error('Gagal menyimpan ke Sheet', e);
+                }
             }
 
-            // Update data di memori lokal tabel
+            // Update memori lokal agar tidak perlu refresh halaman
             const itemIndex = allData.findIndex(d => d.id === id);
             if(itemIndex > -1) {
                 allData[itemIndex].wr = newWR;
-                showNotification('WR Berhasil Disimpan di Memori Lokal!');
-                applyFilters(); // Render ulang tabel background
-                viewDetail(id); // Muat ulang modal
+                showNotification('Berhasil! WR Tersimpan di Database.');
+                applyFilters(); 
+                viewDetail(id); 
+            }
+        }
+
+        async function approveOrder(id, roleType) {
+            let actionType = '';
+            let btnId = '';
+            if (roleType === 'GL') { actionType = 'approve_gl'; btnId = `btn-approve-gl-${id}`; }
+            if (roleType === 'Planner') { actionType = 'approve_planner'; btnId = `btn-approve-pl-${id}`; }
+
+            const btn = document.getElementById(btnId);
+            if(btn) {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan ke Database...';
+                btn.disabled = true;
+            }
+
+            // Jika API sudah di-setting, kirim persetujuan ke Google Sheets
+            if(GAS_API_URL && GAS_API_URL !== '') {
+                try {
+                    await fetch(GAS_API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: actionType, id: id })
+                    });
+                } catch(e) {
+                    console.error('Gagal mengirim Approve ke Sheet', e);
+                }
+            }
+
+            // Update memori lokal
+            const itemIndex = allData.findIndex(d => d.id === id);
+            if(itemIndex > -1) {
+                if (roleType === 'GL') allData[itemIndex].approve_gl = 'Approved';
+                if (roleType === 'Planner') allData[itemIndex].approve_planner = 'Approved';
+
+                let glStat = allData[itemIndex].approve_gl;
+                let plStat = allData[itemIndex].approve_planner;
+
+                if (glStat === 'Approved' && plStat === 'Approved') allData[itemIndex].status = 'Closed';
+                else if (glStat === 'Approved' || plStat === 'Approved') allData[itemIndex].status = 'On Progress';
+
+                showNotification(`Order berhasil divallidasi oleh ${roleType}!`);
+                applyFilters(); 
+                viewDetail(id); 
             }
         }
 
