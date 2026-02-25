@@ -84,7 +84,7 @@
                     <input type="password" id="password" class="w-full bg-engine-900 border border-gray-700 rounded py-2 px-3 text-white focus:outline-none focus:border-engine-accent transition-colors" required placeholder="Masukkan password...">
                 </div>
                 <div id="login-error" class="hidden text-red-500 text-sm mb-4 text-center font-bold">Username atau Password salah!</div>
-                <button type="submit" class="w-full bg-transparent border border-engine-accent text-engine-accent font-bold py-2 px-4 rounded hover:bg-engine-accent hover:text-engine-900 transition-all duration-300 flex justify-center items-center">
+                <button type="submit" id="btn-login-submit" class="w-full bg-transparent border border-engine-accent text-engine-accent font-bold py-2 px-4 rounded hover:bg-engine-accent hover:text-engine-900 transition-all duration-300 flex justify-center items-center">
                     <i class="fas fa-sign-in-alt mr-2"></i> INITIALIZE LOGIN
                 </button>
             </form>
@@ -469,6 +469,12 @@
             document.getElementById('login-page').classList.remove('hidden');
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
+
+            // Kembalikan Tombol Login Ke State Awal
+            const loginBtn = document.getElementById('btn-login-submit');
+            if(loginBtn) {
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> INITIALIZE LOGIN';
+            }
 
             // Hentikan Auto-Refresh saat logout
             if(autoSyncInterval) clearInterval(autoSyncInterval);
