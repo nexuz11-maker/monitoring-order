@@ -303,9 +303,9 @@
         const SHEET_ID = '1eC6VBGlMtLoqZBJARS6p7dzcoG2d697w_xGT3n37lqw'; 
         
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // PENTING: Masukkan URL Aplikasi Web (GAS) Anda di sini. 
-        // Biarkan kosong ('') jika belum ada, maka web akan save mode lokal.
-        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzZ5MHdfYyoJY5pC-Jr7dGHkBYXuS7jNEW01ht20BnwSUGkTHi2LKdSkmF1maKwD3_0UA/exec'; 
+        // PENTING 1: Masukkan URL Aplikasi Web (GAS) Anda di dalam tanda kutip di bawah ini!
+        // Contoh: const GAS_API_URL = 'https://script.google.com/macros/s/AKfyc.../exec';
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzJ_MSu818ixGKl8RwzWcuwWJfDo-Ayj9nZHNlLOefE_AiJ-lqfAQiOUJUVj2MViV0f7w/exec'; 
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         // --- VARIABEL SISTEM ---
@@ -332,25 +332,7 @@
                     approve_gl: 'Pending',
                     approve_planner: 'Pending',
                     detail_item: [
-                        { part: 'AM-N200HD', desc: 'BATTERY', qty: 2 },
-                        { part: '22806', desc: 'TERMINAL BATTERY (+/-)', qty: 2 },
-                        { part: '442467', desc: 'AIR ZURR 1,5 L', qty: 24 }
-                    ]
-                },
-                {
-                    id: 2,
-                    tanggal: '2026-02-22',
-                    cn_number: '8194',
-                    cn_unit: 'GR2032',
-                    wr: '-',
-                    req_by: 'DANDI',
-                    status: 'Pending',
-                    remark: 'HOSE PAP HABIS',
-                    approve_gl: 'Pending',
-                    approve_planner: 'Pending',
-                    detail_item: [
-                        { part: '427005', desc: 'HOSE PAP', qty: 100 },
-                        { part: '91040', desc: 'AIR TAMBAH', qty: 24 }
+                        { part: 'AM-N200HD', desc: 'BATTERY', qty: 2 }
                     ]
                 }
             ];
@@ -862,7 +844,9 @@
             document.getElementById('detail-modal').classList.remove('hidden');
         }
 
-        // --- FUNGSI UPDATE KE GOOGLE SHEETS VIA API ---
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // --- FUNGSI UPDATE KE GOOGLE SHEETS VIA API (SUDAH DIPERBAIKI) ---
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         async function saveWR(id) {
             const inputField = document.getElementById(`input-wr-${id}`);
             const btn = document.getElementById(`btn-save-wr-${id}`);
@@ -870,23 +854,25 @@
 
             if(!newWR) { showNotification('Nomor WR Tidak Boleh Kosong!'); return; }
 
-            // Loading state
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
             btn.disabled = true;
 
-            // Jika API sudah di-setting, kirim ke Google Sheets
+            // PENTING 2: Menggunakan mode: 'no-cors' agar browser tidak memblokir ke Google
             if(GAS_API_URL && GAS_API_URL !== '') {
                 try {
                     await fetch(GAS_API_URL, {
                         method: 'POST',
+                        mode: 'no-cors', 
+                        headers: { 'Content-Type': 'text/plain' },
                         body: JSON.stringify({ action: 'save_wr', id: id, value: newWR })
                     });
                 } catch(e) {
                     console.error('Gagal menyimpan ke Sheet', e);
                 }
+            } else {
+                alert("PERINGATAN: URL API Google Script belum Anda masukkan ke dalam file HTML ini!");
             }
 
-            // Update memori lokal agar tidak perlu refresh halaman
             const itemIndex = allData.findIndex(d => d.id === id);
             if(itemIndex > -1) {
                 allData[itemIndex].wr = newWR;
@@ -908,19 +894,22 @@
                 btn.disabled = true;
             }
 
-            // Jika API sudah di-setting, kirim persetujuan ke Google Sheets
+            // PENTING 3: Menggunakan mode: 'no-cors' agar browser tidak memblokir ke Google
             if(GAS_API_URL && GAS_API_URL !== '') {
                 try {
                     await fetch(GAS_API_URL, {
                         method: 'POST',
+                        mode: 'no-cors', 
+                        headers: { 'Content-Type': 'text/plain' },
                         body: JSON.stringify({ action: actionType, id: id })
                     });
                 } catch(e) {
                     console.error('Gagal mengirim Approve ke Sheet', e);
                 }
+            } else {
+                alert("PERINGATAN: URL API Google Script belum Anda masukkan ke dalam file HTML ini!");
             }
 
-            // Update memori lokal
             const itemIndex = allData.findIndex(d => d.id === id);
             if(itemIndex > -1) {
                 if (roleType === 'GL') allData[itemIndex].approve_gl = 'Approved';
