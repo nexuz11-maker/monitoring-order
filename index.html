@@ -455,7 +455,12 @@
                 sessionStorage.setItem('username', validUser.username);
                 document.getElementById('display-username').innerText = validUser.username;
                 document.getElementById('display-role').innerText = validUser.username === 'Admin' ? 'Admin Mode' : 'Standard User';
-                setTimeout(() => showDashboard(), 500); 
+                
+                setTimeout(() => {
+                    // Reset langsung tombol agar saat dilogout sudah kembali normal
+                    btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> INITIALIZE LOGIN';
+                    showDashboard();
+                }, 500); 
             } else {
                 errDiv.classList.remove('hidden');
                 btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> INITIALIZE LOGIN';
@@ -467,10 +472,13 @@
             sessionStorage.removeItem('username');
             document.getElementById('main-dashboard').classList.add('hidden');
             document.getElementById('login-page').classList.remove('hidden');
+            
+            // Bersihkan form dan peringatan error
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
+            document.getElementById('login-error').classList.add('hidden');
 
-            // Kembalikan Tombol Login Ke State Awal
+            // Kembalikan Tombol Login Ke State Awal (Double Check)
             const loginBtn = document.getElementById('btn-login-submit');
             if(loginBtn) {
                 loginBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> INITIALIZE LOGIN';
